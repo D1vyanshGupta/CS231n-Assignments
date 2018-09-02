@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class TwoLayerNet(object):
   """
   A two-layer fully-connected neural network. The net has an input dimension of
-  D, a hidden layer dimension of H, and performs classification over C classes.
+  N, a hidden layer dimension of H, and performs classification over C classes.
   We train the network with a softmax loss function and L2 regularization on the
   weight matrices. The network uses a ReLU nonlinearity after the first fully
   connected layer.
@@ -66,10 +66,10 @@ class TwoLayerNet(object):
     # Unpack variables from the params dictionary
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
-
-    # get the dimensions of the design matrix
     N, D = X.shape
 
+    # Compute the forward pass
+    scores = None
     #############################################################################
     # TODO: Perform the forward pass, computing the class scores for the input. #
     # Store the result in the scores variable, which should be an array of      #
@@ -88,22 +88,27 @@ class TwoLayerNet(object):
     # calculate the intermediate signal matrix for the second layer
     # ith row gives the intermediate signal vector for the ith data point
     signal_l2 = signal_l1.dot(W2) + b2
+
+    # calculate the final scores after the second layer
+    scores = signal_l2
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
 
     # If the targets are not given then jump out, we're done
     if y is None:
-      return scores_l2
+      return scores
 
-    # computing the loss
-    loss = 0.0
+    # Compute the loss
+    loss = None
     #############################################################################
     # TODO: Finish the forward pass, and compute the loss. This should include  #
     # both the data loss and L2 regularization for W1 and W2. Store the result  #
     # in the variable loss, which should be a scalar. Use the Softmax           #
     # classifier loss.                                                          #
     #############################################################################
+
     # exponentiate all the entries of every signal vector
     exp_signal = np.exp(signal_l2)
 
@@ -121,6 +126,7 @@ class TwoLayerNet(object):
 
     # implement L2 regularization on W1 and W2
     loss += reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -132,10 +138,9 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-
     # first back propagation
 
-    # divide every component of every exp_signal vector by the sum of the component
+    # divide every component of every exp_signal vector by the sum of the components
     exp_signal /= np.sum(exp_signal, axis=1)[:, np.newaxis]
 
     # subtract 1 from the posterior probability of correct classification
@@ -152,7 +157,7 @@ class TwoLayerNet(object):
     # third back propagation
 
     # calculate the gradient w.r.t. W2
-    dW2 = (scores_l1.T).dot(exp_signal)
+    dW2 = (signal_l1.T).dot(exp_signal)
 
     # average the gradient across all data points
     dW2 /= N
@@ -184,10 +189,11 @@ class TwoLayerNet(object):
     dW1 += 2 * reg * W1
 
     # put values in the dictionary
-    grads['W2'] = dW2
-    grads['W1'] = dW1
     grads['b2'] = db2
+    grads['W2'] = dW2
     grads['b1'] = db1
+    grads['W1'] = dW1
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -231,6 +237,8 @@ class TwoLayerNet(object):
       # TODO: Create a random minibatch of training data and labels, storing  #
       # them in X_batch and y_batch respectively.                             #
       #########################################################################
+
+      # randomly sample indices from the training data
       indices = np.random.choice(num_train, size=batch_size, replace=True)
       X_batch = X[indices]
       y_batch = y[indices]
@@ -248,6 +256,8 @@ class TwoLayerNet(object):
       # using stochastic gradient descent. You'll need to use the gradients   #
       # stored in the grads dictionary defined above.                         #
       #########################################################################
+
+      # implement gradient descent
       self.params['W1'] -= learning_rate * grads['W1']
       self.params['W2'] -= learning_rate * grads['W2']
       self.params['b1'] -= learning_rate * grads['b1']
@@ -296,10 +306,20 @@ class TwoLayerNet(object):
     ###########################################################################
     # TODO: Implement this function; it should be VERY simple!                #
     ###########################################################################
-    scores_l1 = X.dot(self.params['W1']) + self.params['b1']
-    scores_l1[scores_l1 < 0] = 0
-    scores_l2 = scores_l1.dot(self.params['W2']) + self.params['b2']
-    y_pred = np.argmax(scores_l2, axis=1)
+
+    # implement forward pass for the test data
+
+    # forward pass through the first layer
+    signal_l1 = X.dot(self.params['W1']) + self.params['b1']
+
+    # ReLU activation after the first layer
+    signal_l1[signal_l1 < 0] = 0
+
+    # forward pass through the second layer
+    signal_l2 = signal_l1.dot(self.params['W2']) + self.params['b2']
+
+    # retrieve class labels corresponding to largest posterior probability
+    y_pred = np.argmax(signal_l2, axis=1)
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################

@@ -29,35 +29,73 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
+
   # get number of training examples
   num_train = X.shape[0]
 
   # get number of classes
   num_classes = W.shape[1]
 
-  for i in range(num_train):
-      scores = (X[i]).dot(W)
-      scores -= np.max(scores)
-      exp_scores = np.exp(scores)
-      sum_exp_scores = np.sum(exp_scores)
-      prob = exp_scores[y[i]] / sum_exp_scores
-      loss -= np.log(prob)
+  for i in np.arange(num_train):
+      # calculate the score vector
+      score_vector = (X[i, :]).dot(W)
 
-      for j in range(num_classes):
+      # normalize the entries of the score vector
+      # this is no ensure mathematical stability during intensive calculations
+      score_vector -= np.max(score_vector)
+
+      # exponentiate all the entries of the score vector
+      exp_score_vector = np.exp(score_vector)
+
+      # divide all the entries of the score vector by sum of all entries to calculate the posterior probability of classification
+      exp_score_vector /= np.sum(exp_score_vector)
+
+      # get posterior probability of correct classification
+      prob = exp_score_vector[y[i]]
+
+      # calculate log-likelihood
+      log_lhood = np.log(prob)
+
+      # add negative log-likelihood to the loss
+      loss += (-1) * log_lhood
+
+      # derivative of loss (L_i) w.r.t. score vector (s_i) is dL_i_by_s_i
+      # s_i[j] are components of the score vector (s_i)
+      # if j != y_i
+      #     dL_i_by_s_i[j] = probability that X[i] belongs to class j = exp_score_vector[j]
+      #   else
+      #       dL_i_by_s_i[j] = probability that X[i] belongs to class y_i - 1 = exp_score_vector[y_i] - 1
+
+      # dL_i_by_W_[k,l] = X[i, k] * dL_i_by_s_i[l]
+      # => dL_i_by_W_[:,l] = X[i, :] * dL_i_by_s_i[l]
+
+      # iterate through the entries of the score vector
+      for j in np.arange(num_classes):
           if j == y[i]:
-              dW[:, j] -= ((sum_exp_scores / exp_scores[y[i]]) * (sum_exp_scores * exp_scores[y[i]] - np.square(exp_scores[y[i]])) / (np.square(sum_exp_scores))) * X[i, :]
-          else:
-              dW[:, j] += ((sum_exp_scores / exp_scores[y[i]]) * (exp_scores[y[i]] * exp_scores[j]) / (np.square(sum_exp_scores))) * X[i, :]
+              # calculate dL_i_by_s_i[y_i]
+              derivative = exp_score_vector[y[i]] - 1
 
-  # Right now the loss is a sum over all training examples, but we want it
-  # to be an average instead so we divide by num_train.
+              # calculate the contribution of s_i[y_i] to dL_i_by_W_[:,j]
+              dW[:, j] += derivative * X[i, :]
+
+          else:
+              # calculate dL_i_by_s_i[y_i]
+              derivative = exp_score_vector[j]
+
+              # calculate the contribution of s_i[y_i] to dL_i_by_W_[:,j]
+              dW[:, j] += derivative * X[i, :]
+
+  # average the loss across all data points
   loss /= num_train
+
+  # implement L2 regularization on W
   loss += reg * np.sum(W * W)
 
-  # Add regularization to the loss.
+  # average the gradient across all data points
   dW /= num_train
-  dW += 2 * reg * W
 
+  # account for the derivative of the L2 regularization term
+  dW += 2 * reg * W
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
@@ -113,9 +151,6 @@ def softmax_loss_vectorized(W, X, y, reg):
 
   # this is to implement the 2nd back propagation step
   dW = (X.T).dot(exp_scores)
-  #############################################################################
-  #                          END OF YOUR CODE                                 #
-  #############################################################################
 
   # average the loss across all data points
   loss /= num_train
@@ -123,10 +158,14 @@ def softmax_loss_vectorized(W, X, y, reg):
   # implement L2 regularization on W
   loss += reg * np.sum(W * W)
 
-  # average the gradient values across all data points
+  # average the gradient across all data points
   dW /= num_train
 
-  # derivative of the L2 regularization term
+  # account for the derivative of the L2 regularization term
   dW += 2 * reg * W
+
+  #############################################################################
+  #                          END OF YOUR CODE                                 #
+  #############################################################################
 
   return loss, dW

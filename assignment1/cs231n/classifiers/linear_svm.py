@@ -22,37 +22,57 @@ def svm_loss_naive(W, X, y, reg):
   dW = np.zeros(W.shape) # initialize the gradient as zero
 
   # compute the loss and the gradient
-
-  # get the number of classes
   num_classes = W.shape[1]
-
-  # get the number of training examples
   num_train = X.shape[0]
-
-  # initialize loss to 0.0
   loss = 0.0
-
   for i in range(num_train):
     scores = X[i].dot(W)
     correct_class_score = scores[y[i]]
     for j in range(num_classes):
+
+      # derivative of loss (L_i) w.r.t. score vector (s_i) is dL_i_by_s_i
+      # s_i[j] are components of the score vector (s_i)
+      # if j != y_i
+      #   if s_i[j] - s_i[y_i] + 1 > 0
+      #       dL_i_by_s_i[j] = 1
+      #   else
+      #       dL_i_by_s_i[j] = 0
+      # else
+      #   dL_i_by_s_i[y_i] = (-1) * number of times s_i[j] - s_i[y_i] + 1 > 0 for all j != y_i
+
+      # dL_i_by_W_[k,l] = X[i, k] * dL_i_by_s_i[l]
+      # => dL_i_by_W_[:,l] = X[i, :] * dL_i_by_s_i[l]
+
       if j == y[i]:
-        dW[:, j] -= (np.sum(1 * ((scores - correct_class_score + 1) > 0)) - 1) * X[i, :]
+        # count number of times s_i[j] - s_i[y_i] + 1 > 0 for all j != y_i
+        count = np.sum((scores - correct_class_score + 1) > 0)
+
+        # subtract the contribution from y_i
+        count -= 1
+
+        # calculate dL_i_by_s_i[y_i]
+        derivative = count
+
+        # calculate the contribution of s_i[y_i] to dL_i_by_W_[:,j]
+        dW[:, j] += (-1) * derivative * X[i, :]
         continue
 
       margin = scores[j] - correct_class_score + 1 # note delta = 1
       if margin > 0:
         loss += margin
-        dW[:, j] += X[i, :]
+
+        # calculate dL_i_by_s_i[j]
+        derivative = 1
+
+        # calculate the contribution of s_i[y_i] to dL_i_by_W_[:,j]
+        dW[:, j] += derivative * X[i, :]
 
   # Right now the loss is a sum over all training examples, but we want it
   # to be an average instead so we divide by num_train.
   loss /= num_train
-  dW /= num_train
 
   # Add regularization to the loss.
   loss += reg * np.sum(W * W)
-  dW += 2 * reg * W
 
   #############################################################################
   # TODO:                                                                     #
@@ -63,6 +83,11 @@ def svm_loss_naive(W, X, y, reg):
   # code above to compute the gradient.                                       #
   #############################################################################
 
+  # average the gradient across all data points
+  dW /= num_train
+
+  # account for the derivative of the L2 regularization term
+  dW += 2 * reg * W
 
   return loss, dW
 
@@ -105,9 +130,12 @@ def svm_loss_vectorized(W, X, y, reg):
 
   # implement L2 regularization on W
   loss += reg * np.sum(W * W)
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
+
+
   #############################################################################
   # TODO:                                                                     #
   # Implement a vectorized version of the gradient for the structured SVM     #
@@ -135,5 +163,9 @@ def svm_loss_vectorized(W, X, y, reg):
 
   # derivative of the L2 regularization term
   dW += 2 * reg * W
+
+  #############################################################################
+  #                             END OF YOUR CODE                              #
+  #############################################################################
 
   return loss, dW

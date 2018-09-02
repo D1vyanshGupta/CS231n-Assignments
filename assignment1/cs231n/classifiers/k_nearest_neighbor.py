@@ -71,7 +71,10 @@ class KNearestNeighbor(object):
         # training point, and store the result in dists[i, j]. You should   #
         # not use a loop over dimension.                                    #
         #####################################################################
+
+        # simply calculate the norm of the difference between the vectors
         dists[i, j] = np.linalg.norm(X[i] - self.X_train[j])
+
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
@@ -93,7 +96,11 @@ class KNearestNeighbor(object):
       # Compute the l2 distance between the ith test point and all training #
       # points, and store the result in dists[i, :].                        #
       #######################################################################
+
+      # axis=1: subtract each row of self.X_train from X[i]
+
       dists[i] = np.linalg.norm(X[i] - self.X_train, axis=1)
+
       #######################################################################
       #                         END OF YOUR CODE                            #
       #######################################################################
@@ -121,7 +128,29 @@ class KNearestNeighbor(object):
     # HINT: Try to formulate the l2 distance using matrix multiplication    #
     #       and two broadcast sums.                                         #
     #########################################################################
-    dists = np.sqrt(np.sum(X**2, axis=1)[:, np.newaxis] + np.sum(self.X_train**2, axis=1) - 2*np.dot(X, self.X_train.T))
+
+    # ||vec(x) - vec(y)||^2 = (vec(x) - vec(y)).(vec(x) - vec(y))
+    # => ||vec(x) - vec(y)||^2 = ||vec(x)||^2 + ||vec(y)||^2 - 2 * (vec(x).vec(y))
+
+    # calculate the norm of each test example
+    X_square = np.sum(X**2, axis=1)
+
+    # add a new axis to X_square for each test example
+    # this is to work with each test example and each training example
+    X_square_new_axis = X_square[:, np.newaxis]
+
+    # calculate the norm of each training example
+    Y_square = np.sum(self.X_train**2, axis=1)
+
+    # calculate dot product between all test and training examples
+    X_dot_Y = X.dot(self.X_train.T)
+
+    # calculate the square of the distance between all pairs of test and training examples
+    dists_squared = X_square_new_axis + Y_square - 2 * X_dot_Y
+
+    # finally calculate the distance matrix
+    dists = np.sqrt(dists_squared)
+
     #########################################################################
     #                         END OF YOUR CODE                              #
     #########################################################################
@@ -153,8 +182,15 @@ class KNearestNeighbor(object):
       # neighbors. Store these labels in closest_y.                           #
       # Hint: Look up the function numpy.argsort.                             #
       #########################################################################
-      knn_indices = np.argsort(dists[i])[:k]
+
+      # np.argsort: get the indices of elements in order of the elements sorted in non-decreasing order
+      # choose the first k indices to be able to access the closest k training examples
+
+      knn_indices = np.argsort(dists[i, :])[:k]
+
+      # retrieve the labels of the closest k training examples
       closest_y = self.y_train[knn_indices]
+
       #########################################################################
       # TODO:                                                                 #
       # Now that you have found the labels of the k nearest neighbors, you    #
@@ -162,7 +198,15 @@ class KNearestNeighbor(object):
       # Store this label in y_pred[i]. Break ties by choosing the smaller     #
       # label.                                                                #
       #########################################################################
+
+      # choose the label which appears the most
+
+      # np.bincount: array of bins, where each bin gives the number of occurences of its index value in the array
+      # np.argmax: returns the index of the maximum value
+
+      # hence, index of the bin with the largest count corresponds to the label which appears the most
       y_pred[i] = np.argmax(np.bincount(closest_y))
+
       #########################################################################
       #                           END OF YOUR CODE                            #
       #########################################################################
